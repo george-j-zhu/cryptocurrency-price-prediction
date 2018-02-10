@@ -4,11 +4,11 @@
 
 
 import chainer
-from chainer import training
+from chainer import training, Variable
 
 class LSTMUpdater(training.StandardUpdater):
-    def __init__(self, data_iter, optimizer, device=None):
-        super(LSTMUpdater, self).__init__(data_iter, optimizer, device=None)
+    def __init__(self, data_iter, optimizer, device=-1):
+        super(LSTMUpdater, self).__init__(data_iter, optimizer, device=device)
         self.device = device
 
     def update_core(self):
@@ -18,13 +18,13 @@ class LSTMUpdater(training.StandardUpdater):
         batch = data_iter.__next__()
         x_batch, y_batch = chainer.dataset.concat_examples(batch, self.device)
 
-        # ここで reset_state() を実行
-        optimizer.target.reset_state()
-
         optimizer.target.cleargrads()
-        loss = optimizer.target(x_batch, y_batch)
+        # reset states in LSTM each update
+        optimizer.target.reset_state()
+        loss = optimizer.target(Variable(x_batch), Variable(y_batch))
+        
         loss.backward()
-        # batch単位で古い情報を削除し、計算コストを削減
+        # delete history to reduce computation cost.
         loss.unchain_backward()
-        # batch単位で更新
+        # update per batch
         optimizer.update()

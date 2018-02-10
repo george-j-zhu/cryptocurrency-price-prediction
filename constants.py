@@ -3,9 +3,14 @@
 # Author: Jiajun Zhu
 
 
-#過去100日間の価格を取得
+# days for data retrieving
 DAY = 100
-#5分毎の価格を取得（単位は秒）
+# interval of each retrieve (seconds）
 PERIOD = 300
+
+# currency pairs
 PAIR_USDT_BTC = "USDT_BTC"
 PAIR_BTC_ETH = "BTC_ETH"
+
+# length for expanatory variable sequence(L features).
+SEQ_LENGTH = 10

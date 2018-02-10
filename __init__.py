@@ -1,5 +1,5 @@
 from . import constants
 from . import networks
 from . import updater
-from . import poloniex_data_reader
+from . import data_manager
 from . import main
