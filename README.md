@@ -12,7 +12,7 @@ All Bitcoin data are from Poloniex through API.<br>
 [Polomiex Python API](https://github.com/s4w3d0ff/python-poloniex)<br>
 
 I plotted "close"(target variable) in the JSON response retrived from the above RESTful API as follows.<br>
-![Bitcoin price](https://github.com/george-j-zhu/cryptocurrency-price-prediction/resources/data_plot.jpg)
+![Bitcoin price](https://github.com/george-j-zhu/cryptocurrency-price-prediction/blob/master/resources/data_plot.jpg)
 
 Next, we need to generate features(explanatory variables) from "close". A common method called differencing is<br>
 used here for that purpose.<br>
@@ -59,13 +59,13 @@ within the batch loop. But when we use
 [Click here to see the notebook](https://github.com/george-j-zhu/cryptocurrency-price-prediction/blob/master/lstm.ipynb)
 
 First let's see the the predictions of the cv data set.<br>
-![predictions on CV data set](https://github.com/george-j-zhu/cryptocurrency-price-prediction/resources/predictions_on_cv.jpg)
+![predictions on CV data set](https://github.com/george-j-zhu/cryptocurrency-price-prediction/blob/master/resources/predictions_on_cv.jpg)
 
 As the predictions on cross-validation data set are quite similar to real price values, at least I can say that the<br>
 learning process is going well.
 
 Next let's see the the predictions of the test data set.<br>
-![predictions on test data set](https://github.com/george-j-zhu/cryptocurrency-price-prediction/resources/predictions_on_test.jpg)
+![predictions on test data set](https://github.com/george-j-zhu/cryptocurrency-price-prediction/blob/master/resources/predictions_on_test.jpg)
 
 The predictions on test data set look like a straight line that means our model is overfitted and the predictions<br>
 are not going well.
