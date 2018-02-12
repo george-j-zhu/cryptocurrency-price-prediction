@@ -3,9 +3,9 @@
 # Author: Jiajun Zhu
 
 
-# days for data retrieving
-DAY = 100
-# interval of each retrieve (seconds）
+# period for data retrieving
+DAY = 90
+# interval of each data (seconds）
 PERIOD = 300
 
 # currency pairs

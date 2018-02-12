@@ -11,21 +11,22 @@ import numpy as np
 from sklearn import preprocessing
 import constants
 
-polo = poloniex.Poloniex()
-
 
 def return_chart_data(pair, period, day):
     """
     retrieve data from poloniex.
     """
-    chart_data = polo.returnChartData(pair, period=period, start=time.time()-polo.DAY*day, end=time.time())
+    polo = poloniex.Poloniex()
+    chart_data = polo.returnChartData(pair,
+                                      period=period,
+                                      start=time.time()-polo.DAY*day,
+                                      end=time.time())
     df = pd.DataFrame(chart_data)
 
     plt.figure(figsize=(20,10))
-    plt.plot(pd.to_datetime(df["date"].astype(int) , unit="s"), df["close"].astype(np.float32), label = "Coin Price")
+    plt.plot(pd.to_datetime(df["date"].astype(int) , unit="s"),
+             df["close"].astype(np.float32), label = "Coin Price")
     #plt.plot(pd.to_datetime(df["date"].astype(int) , unit="s"), df["quoteVolume"].astype(np.float32), label = "Volume")
-    #plt.yticks(500, 10000, 10)
-    #plt.ylim(10000, 12000)
     plt.legend(loc='best', fontsize=14)
     plt.tick_params(labelsize=14)
     plt.show()
@@ -49,21 +50,24 @@ def range_scale_data(matrix):
 
 def __generate_explanatory_and_target_variables(dataframe):
     """
-    split close as explanatory_and_target_variables.
+    split "close" column as explanatory_and_target_variables.
     """
     data = dataframe["close"].astype(np.float32)
     time = pd.to_datetime(dataframe["date"].astype(int) , unit="s")
-    
+
+    t = np.empty((0,1), int)
     x = np.empty((0,constants.SEQ_LENGTH), np.float32)
     y = np.empty((0,1), np.float32)
-    
+
     m = len(data)
     for n in range(constants.SEQ_LENGTH, m):
+        new_t = np.array([[time[n]]])
         new_x = np.array([data[n-constants.SEQ_LENGTH: n].as_matrix()])
         new_y = np.array([[data[n]]])
+        t = np.append(t, new_t, axis=0)
         x = np.append(x, new_x, axis=0)
         y = np.append(y, new_y, axis=0)
-    return time, x, y
+    return t, x, y
 
 
 def prepare_data(dataframe):
@@ -73,20 +77,24 @@ def prepare_data(dataframe):
     time, x, y = __generate_explanatory_and_target_variables(dataframe)
 
     m = len(x)
-    
+
     # 60% training data, 20% cv data, 20% test data
     N_train = int(m * 0.6)
     N_cv = int(m * 0.2)
     time_train, time_cv, time_test = time[:N_train], time[N_train:N_train+N_cv], time[N_train+N_cv:]
     x_train, x_cv, x_test = x[:N_train], x[N_train:N_train+N_cv], x[N_train+N_cv:]
-    y_train, y_cv, y_test = y[:N_train], y[N_train:N_train+N_cv], y[N_train+N_cv:]
-    
+    y_train_and_cv, y_test = y[:N_train+N_cv], y[N_train+N_cv:]
+    y_train, y_cv = y[:N_train], y[N_train:N_train+N_cv]
+
     x_train, null = range_scale_data(x_train)
     x_cv, null = range_scale_data(x_cv)
     x_test, null = range_scale_data(x_test)
     y_train, null = range_scale_data(y_train)
-    y_cv, y_scaler = range_scale_data(y_cv)
-    # in real production, since there will be no y_test, dont use scaler of y_test to inverse predictions.
+    y_cv, null = range_scale_data(y_cv)
+    # scaling is not needed for y_test since y_test'll not be used in learning.
     y_test_not_normalized = y_test
-    
-    return time_train, time_cv, time_test, x_train, y_train, x_cv, y_cv, x_test, y_test_not_normalized, y_scaler
+
+    null, y_scaler = range_scale_data(y_train_and_cv)
+
+    return time_train, time_cv, time_test, x_train, x_cv, x_test,\
+        y_train, y_cv, y_test_not_normalized, y_scaler
