@@ -3,8 +3,6 @@
 # Author: Jiajun Zhu
 
 
-# period for data retrieving
-DAY = 90
 # interval of each data (seconds）
 PERIOD = 300
 
@@ -12,5 +10,10 @@ PERIOD = 300
 PAIR_USDT_BTC = "USDT_BTC"
 PAIR_BTC_ETH = "BTC_ETH"
 
-# length for expanatory variable sequence(L features).
-SEQ_LENGTH = 10
+# length for expanatory variable sequence(n features).
+SEQ_LENGTH = 30 # aka. time steps in keras
+
+BATCH_SIZE = 1 # as we need to use one-step forecast, batch size should be 1.
+LSTM_HIDDEN_NEURONS = 32 # number of hidden nerons
+DATA_DIM = 1
+EPOCHS = 30

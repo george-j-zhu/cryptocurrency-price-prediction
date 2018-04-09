@@ -5,62 +5,40 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-import data_manager
+from keras.models import Sequential
+from keras.layers import Dense, Activation, Dropout, LSTM, Flatten
+from keras.optimizers import RMSprop
+from keras.utils import np_utils
+from keras.preprocessing import sequence
+from sklearn.model_selection import train_test_split
+import dataManager
 import constants
-import updater
-import networks
-import chainer
-from chainer import Variable, optimizers, training
-from chainer.training import extensions
 
 
-def initialize_trainer(x_train, y_train, x_cv,  y_cv):
-    """
-    initialize chianer trainer
-    """
-    train = list(zip(x_train, y_train))
-    cv  = list(zip(x_cv,  y_cv))
+# perform one-step forecast(with test data)
+def one_step_prediction_using_test_data(model, previos_y):
 
-    # initialize an LSTM
-    model = networks.LSTM(constants.SEQ_LENGTH, 100, 1)
+    y_pred = np.zeros((len(dm.test_scaled), 1))
 
-    # optimizer
-    optimizer = optimizers.SGD()  #learning rate alpha=0.001?
-    optimizer.setup(model)
+    for i in range(len(dm.test_scaled)):
 
-    # batch
-    batchsize = 20
-    train_iter = chainer.iterators.SerialIterator(train, batchsize)
-    cv_iter = chainer.iterators.SerialIterator(cv, batchsize, repeat=False, shuffle=False)
+        x = dm.test_scaled[i, :-1].reshape(constants.BATCH_SIZE, constants.SEQ_LENGTH, constants.DATA_DIM)
+        _y_pred = model.predict(x)
 
-    # updater
-    upd = updater.LSTMUpdater(train_iter, optimizer)
+        x = x.reshape(constants.BATCH_SIZE, constants.SEQ_LENGTH)
+        _y_pred = _y_pred.reshape(constants.BATCH_SIZE, 1)
 
-    # trainer
-    epoch = 30
-    trainer = training.Trainer(upd, (epoch, 'epoch'))
+        # inverse scale
+        y_pred_indiffereced = dm.inverse_data(x, _y_pred, previos_y)
 
-    # extension
-    trainer.extend(extensions.Evaluator(cv_iter, model))
-    trainer.extend(extensions.LogReport(trigger=(1, 'epoch')))
-    trainer.extend(extensions.PrintReport(['epoch', 'main/loss', 'validation/main/loss']))
-    return trainer, model
+        previos_y = dm.test_original_df.iloc[i, -1]
 
-
-def predict_y_test(x_seq, model, y_test):
-    """
-    predict one future value by a past sequence.
-    """
-    y_pred = np.zeros((len(y_test), 1))
-
-    for n in range(len(y_test)):
-        model.reset_state()
-        _y_pred = model.predict(Variable(np.array([x_seq]))).data
-        y_pred[n, 0] = _y_pred
+        model.reset_states()
+        y_pred[i, 0] = y_pred_indiffereced
 
         # create a new sequence for the next prediction
-        x_seq = np.delete(x_seq, 0)
-        x_seq = np.append(x_seq, _y_pred)
+        x = np.delete(x, 0)
+        x = np.append(x, _y_pred[0, 0])
 
     return y_pred
 
@@ -70,45 +48,48 @@ if __name__ == '__main__':
     # fix the random generator
     np.random.seed(1)
 
-    # read bitcoin data as dataframe
-    df = data_manager.return_chart_data(constants.PAIR_USDT_BTC, constants.PERIOD, constants.DAY)
+    # coin pairs: USDT-Bitcoin
+    dm = dataManager.DataManager()
+    dm.return_chart_data(constants.PAIR_USDT_BTC, constants.PERIOD, "2018-03-30 00:00", "2018-04-01 00:00")
+    dm.prepare_data()
 
-    # prepare dataset
-    time_train, time_cv, time_test, x_train, x_cv, x_test, \
-        y_train, y_cv, y_test_not_normalized, y_scaler = data_manager.prepare_data(df)
+    # definition of NN
+    model = Sequential()
+    model.add(LSTM(32, return_sequences=False, batch_input_shape=(constants.BATCH_SIZE, constants.SEQ_LENGTH, constants.DATA_DIM), stateful=True))
+    #model.add(LSTM(32, stateful=True))
+    model.add(Dense(1, activation='linear'))
+    #model.add(Dropout(0.5))
 
-    # initialize trainer
-    trainer, model = initialize_trainer(x_train, y_train, x_cv, y_cv)
-    # train
-    trainer.run()
+    # learning rate as default
+    model.compile(loss="mean_squared_error", optimizer="rmsprop")
 
-    # reset states in our LSTM network
-    model.reset_state()
+    print(model.summary())
 
-    # make predictions for cross-validation set
-    y_pred_cv = model.predict(Variable(x_cv)).data
+    # split CV set from training set.
+    train_data_scaled, cv_data_scaled = train_test_split(
+        dm.train_scaled, test_size=0.25, random_state=42, shuffle=False)
+    x_train_scaled, y_train_scaled = train_data_scaled[:, 0:-1], train_data_scaled[:, -1]
+    x_cv_scaled, y_cv_scaled = cv_data_scaled[:, 0:-1], cv_data_scaled[:, -1]
+    # reshape data as a tensor(3 dims)
+    x_train_scaled = x_train_scaled.reshape((x_train_scaled.shape[0], constants.SEQ_LENGTH, constants.DATA_DIM))
+    print(x_train_scaled.shape)
+    x_cv_scaled = x_cv_scaled.reshape((x_cv_scaled.shape[0], constants.SEQ_LENGTH, constants.DATA_DIM))
+    # fit data
+    model.fit(x_train_scaled, y_train_scaled,
+            batch_size=constants.BATCH_SIZE,
+            epochs=constants.EPOCHS,
+            verbose=1,
+            validation_data=(x_cv_scaled, y_cv_scaled),
+            shuffle=False)
+
+
+    predicted_test = one_step_prediction_using_test_data(model, dm.train_original_df.iloc[-1, -1])
+
     # plot predicitions
     plt.figure(figsize=(20,10))
-    plt.plot(time_cv, y_scaler.inverse_transform(y_cv), label = "real")
-    plt.plot(time_cv, y_scaler.inverse_transform(y_pred_cv), label = "predicted")
-    plt.legend(loc='best', fontsize=14)
-    plt.tick_params(labelsize=14)
-    plt.show()
-
-    # make predictions for test set
-    y_pred_test = predict_y_test(x_cv[-1], model, y_test_not_normalized)
-    plt.figure(figsize=(20,10))
-    # plot predictions
-    plt.plot(time_test, y_test_not_normalized, label = "real")
-    plt.plot(time_test, y_scaler.inverse_transform(y_pred_test), label = "predicted")
-    plt.legend(loc='best', fontsize=14)
-    plt.tick_params(labelsize=14)
-    plt.show()
-
-    plt.figure(figsize=(20,10))
-    # plot predictions
-    plt.plot(time_test[:50], y_test_not_normalized[:50], label = "real")
-    plt.plot(time_test[:50], y_scaler.inverse_transform(y_pred_test)[:50], label = "predicted")
+    # get the original test data(not differenced)
+    plt.plot(dm.time_test, dm.test_original_df.iloc[:, -1], label = "real")
+    plt.plot(dm.time_test, predicted_test, label = "predicted")
     plt.legend(loc='best', fontsize=14)
     plt.tick_params(labelsize=14)
     plt.show()

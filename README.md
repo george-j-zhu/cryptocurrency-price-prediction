@@ -1,107 +1,195 @@
-﻿# My first try to predict bitcoin price using deep learning.
+﻿# My first try to predict bitcoin price using deep learning in Keras.
 
-As cyptocurrencies are attracting attentions and I'm learning Deep Learning recent days, I tried to use<br>
-Deep Learning to predict Bitcoin price.<br>
+As cryptocurrencies are attracting attentions and I'm learning Deep Learning recent days, I'll try to use Deep Learning to predict Bitcoin price.
+In this attempt, I'll use LSTM to create an Recurrent Neural Network.
 
-I chose Chainer as the library because it is easier to install with only one command and no other<br>
-dependent libraries are needed.<br>
-In this attempt, I used LSTM to create an Recurrent Neural Network.
+## What is LSTM
 
-## Dataset Preparation(poloniex_data_reader.py)
-All Bitcoin data are from Poloniex through API.<br>
+LSTM was proposed 20 years age. Recently in the field of NLP(Natural Language Processing), a language model built by LSTM has better performance even than human. LSTM (Long-Short Term Memory) is known for good at processing long sequence such as long sentences. Gates are deigned in LSTM to contorl and decide what are important to learn.
+
+Want to know more about LSTM? refer to the following site.
+[http://colah.github.io/posts/2015-08-Understanding-LSTMs/](http://colah.github.io/posts/2015-08-Understanding-LSTMs/)
+
+### Stateful or Stateless LSTM
+
+In keras, LSTM is stateless as default. But in this attempt, I'll use stateful LSTM. A stateful LSTM will retain the states after a batch processing while a stateless LSTM will reset them.<br>
+In natural language processing, say we have a long snetence while it is splitted into two different batchs. In order to learning the long sentence correctly, the hidden states should be retained so that the second batch can know the hidden information of the previous batch.  
+States here means the hidden information saved by gates in LSTM.<br>
+In this attempt, as I'll just generate features from timeseries data and don't shuffle them, features are strongly connected. So stateful LSTM should be used to retain states.
+
+## Dataset Preparation
+All data here are from Poloniex through API.<br>
 [Polomiex Python API](https://github.com/s4w3d0ff/python-poloniex)<br>
 
-I plotted "close"(target variable) in the JSON response retrived from the above RESTful API as follows.<br>
-![Bitcoin price](https://github.com/george-j-zhu/cryptocurrency-price-prediction/blob/master/resources/data_plot.jpg)
+I use returnChartData method to retrieve a JSON string containing bitcoin price data.<br>
+'close' column in the JSON string is the price of a specified cryptocurrency.<br>
 
-Next, we need to generate features(explanatory variables) from "close". A common method called differencing is<br>
-used here for that purpose.<br>
+I use 'close' data during 2018-03-30 00:00 ~ 2018-04-01 00:00 to train a LSTM model and make predictions.<br>
+![Bitcoin price](https://github.com/george-j-zhu/cryptocurrency-price-prediction/blob/master/resources/data_plot.png)
 
-As "close" is a time series dataset, we denote the sequence data "close" as close(0), close(1), close(2)...close(m).<br>
-For each close(t) at time t, features for close(t) can be represented as a group of sequence data.<br>
-Defining length of the sequence as L.(In another word we have L features.)<br>
-So feature sequences can be defined as close(t-L), ..., close(t-1)<br>
+Next, as this is a prediction problem, I need to generate features for bitcoin price data so that I can make predictions later.<br>  
+I use the same method described in the following blog.<br>
+[https://machinelearningmastery.com/use-timesteps-lstm-networks-time-series-forecasting/](https://machinelearningmastery.com/use-timesteps-lstm-networks-time-series-forecasting/)
 
-Obvious, we will use feature sequence close(t-L), ..., close(t-1) to predict close(t).
+Simply there are 2 steps:<br>
+- I use a simple technique called differencing to remove the increasing trend in the data
+- I make 30 continuous timeseteps as features, and the 31th timestep as target for prediction. 
 
-Finally, I splitted the whole dataset into 60% as training set, 20% as cross-validation set and 20% as test set.
+Obvious, now in a supervised learning model I can use feature sequence close(t-L), ..., close(t-1) to predict close(t).
 
-## Normalization
+See [dataManager.py](https://github.com/george-j-zhu/cryptocurrency-price-prediction/blob/master/dataManager.py) for implementation.
 
-As LSTM use tanh inside, normalzation is required. I normalized both explanatory variables and target variables.<br>
-While in real productions, normalizing target varibles is not considered as a good practice. Instead we should<br>
-define a proper output layer and activation functions to scale the output to the same range as target variables.<br>
-But here as a biginner, I chose to normalize target varibles and inverse them after predicting.
+## Data Normalization
 
-## LSTM（Long Short-Term Memory）
-LSTM is a deep learning model for processing time series data.<br>
-I'll not explain LSTM here as there are a lot of resouces about it. Here I'd like to explain how to use it in Chainer.
+As LSTM use tanh as activation function inside, I rescale all data to range from -1 to 1. 
 
-### 1.RNN definition(networks.py)
-I designed a 3-layer(aka link in Chianer) RNN, linear layers as input and out layers, an LSTM layer as the hidden<br>
-layer. Actually the network definition depends on experiences. As a beginner I just defined a simple network by<br>
-referencing Chainer documents.
+## Neural Network Definition
 
-### 2.Chainer Updater(updater.py)
-As states saved in the LSTM network need to be reset after a batch processing, in general, we need to reset states<br>
-within the batch loop. But when we use
+As a deep learning beginner, I design a shallow neural network here.<br>
+In general a deep neural network can get a better performance. But as I'm not sure how two LSTM layers refines the performance and adding layers increses computation time, my definition is as follows.<br>
+I add one LSTM layer as the input layer and a fully connected layer(aka. Dense in Keras) as the output layer.
 
-### 3.put all together and start learning(main.py)
-- Make the dataset ready.
-- Initialize the RNN
-- Prepare an optimizer(SGD) for the RNN
-- Intialize iterators for mini batch processing
-- Initalize the updater to run iterators(reset states in LSTM each batch here)
-- Define a trainer to run updater epoch times(loop is not needed)
-- Call trainer.run() to start learing
+<pre>
+SEQ_LENGTH = 30
+BATCH_SIZE = 1
+DATA_DIM = 1
+model = Sequential()
+model.add(LSTM(32, return_sequences=False, batch_input_shape=(BATCH_SIZE, SEQ_LENGTH, DATA_DIM), stateful=True))
+model.add(Dense(1, activation='linear'))
+</pre>
 
-## Predictions(lstm.ipynb)
-[Click here to see the notebook](https://github.com/george-j-zhu/cryptocurrency-price-prediction/blob/master/lstm.ipynb)
+The network should look as follows:<br>
+![Network](https://github.com/george-j-zhu/cryptocurrency-price-prediction/blob/master/resources/network.png)
 
-First let's see the the predictions of the cv data set.<br>
-![predictions on CV data set](https://github.com/george-j-zhu/cryptocurrency-price-prediction/blob/master/resources/predictions_on_cv.jpg)
+As batch_input_shape of LSTM constuctor is a bit confusing, I'd like to add some explain here.<br>
+LSTM require a 3-dimensional array as input. The first 2 dimemsions represents for m samples and n features(aka. sequence length). Each element in a sequence can also have its own dimension. As each element here contains only one value, the 3rd dimension is 1.
+I set batch_size as 1 so LSTM will process m samples one-by-one.
 
-As the predictions on cross-validation data set are quite similar to real price values, at least I can say that the<br>
-learning process is going well.
+Next I set the function as rmsprop to do back propagation to reduce MSE score.
+<pre>
+model.compile(loss="mean_squared_error", optimizer="rmsprop")
+</pre>
 
-Next let's see the the predictions of the test data set.<br>
-![predictions on test data set](https://github.com/george-j-zhu/cryptocurrency-price-prediction/blob/master/resources/predictions_on_test.jpg)
+## Build Neural Network Model
 
-The predictions on test data set look like a straight line that means our model is overfitted and the predictions<br>
-are not going well.
+### Cross Validation(CV)
 
-In a neural network, as stated before in general an activation function on the output layer is needed to scale outpus<br>
-to the same range as the target variable price. In this attempt, instead of using an activation function, I scaled<br>
-target variable price to 0~1, and after predicting, I inversed the predictions to the original scale.<br>
+Cross Validation is a common method to build a better learning model(aka. preventing overfitting). Tranditional CV method like k-fold do cross validation k times to get a reliable validation result. While in deep learning, k times validation would be rather time consuming, so in general we do CV only one time or ignore CV at all. Instead of CV, deep learning have another method called Dropout to prevent overfitting.
+Dropout is improved effective in an early research paper.<br>
+["Dropout: A Simple Way to Prevent Neural Networks from Overfitting". Jmlr.org. Retrieved July 26, 2015.](http://jmlr.org/papers/volume15/srivastava14a.old/srivastava14a.pdf)
 
-So here comes the problems.<br>
+Here I use one-time CV and don't apply Dropout.
 
-I created a scaler for 80% of the whole data set, and finally used this scaler to inverse the rest 20% which is the<br>
-test data set set. We can simply consider this process as follows:<br>
-1. create a scaler for 80% of the whole data set. Simply consider the scaler as a float number max_val which is the<br>
-   maximun value<br>
-2. after predicting on test data set, use the above scaler to inverse the predictions. Simply consider this step as<br>
-   predictions*max_val<br>
+### reshape data
+
+Before using training data to fit our model, in Keras, we need to reshape input data as 3-dimensional arrays.<br>
+Dimension definition is the same as batch_input_shape explained above.
+
+### batch size
+
+I stated before, in our model we use sequence close(t-L), ..., close(t-1) to predict close(t). This also means that in order to predict close(t+1), the real value of close(t) is required.<br>
+This is called one step forecast and batch size should be the same size of forecast step. 
+
+### epoch
+Epoch is another important parameter in deep learning. Epoch defines how many times to train the model repeatly.
+Large epoch leads to better performance, but it's a trade-off between performance and time.
+
+### bring all together
+<pre>
+from sklearn.model_selection import train_test_split
+
+EPOCHS = 30
+
+# split CV set from training set.
+train_data_scaled, cv_data_scaled = train_test_split(
+    dm.train_scaled, test_size=0.25, random_state=2, shuffle=False)
+x_train_scaled, y_train_scaled = train_data_scaled[:, 0:-1], train_data_scaled[:, -1]
+x_cv_scaled, y_cv_scaled = cv_data_scaled[:, 0:-1], cv_data_scaled[:, -1]
+
+# reshape data as a tensor(3 dims)
+x_train_scaled = x_train_scaled.reshape((x_train_scaled.shape[0], SEQ_LENGTH, DATA_DIM))
+x_cv_scaled = x_cv_scaled.reshape((x_cv_scaled.shape[0], SEQ_LENGTH, DATA_DIM))
+
+# fit data
+model.fit(x_train_scaled, y_train_scaled,
+          batch_size=BATCH_SIZE,
+          epochs=EPOCHS,
+          verbose=1,
+          validation_data=(x_cv_scaled, y_cv_scaled),
+          shuffle=False)
+</pre>
+
+## make predictions
+Implementation of one step forecast is as follows:
+
+<pre>
+# perform one-step forecast
+def one_step_prediction_using_test_data(model, previos_y):
+
+    y_pred = np.zeros((len(dm.test_scaled), 1))
+
+    for i in range(len(dm.test_scaled)):
+
+        x = dm.test_scaled[i, :-1].reshape(BATCH_SIZE, SEQ_LENGTH, DATA_DIM)
+        _y_pred = model.predict(x)
+
+        x = x.reshape(BATCH_SIZE, SEQ_LENGTH)
+        _y_pred = _y_pred.reshape(BATCH_SIZE, 1)
+
+        # inverse scale
+        y_pred_indiffereced = dm.inverse_data(x, _y_pred, previos_y)
+
+        previos_y = dm.test_original_df.iloc[i, -1]
+
+        model.reset_states()
+        y_pred[i, 0] = y_pred_indiffereced
+
+        # create a new sequence for the next prediction
+        x = np.delete(x, 0)
+        x = np.append(x, _y_pred[0, 0])
+
+    return y_pred
+
+
+predicted_test = one_step_prediction_using_test_data(model, dm.train_original_df.iloc[-1, -1])
+
+# plot predicitions
+plt.figure(figsize=(20,10))
+# get the original test data(not differenced)
+plt.plot(dm.time_test, dm.test_original_df.iloc[:, -1], label = "real")
+plt.plot(dm.time_test, predicted_test, label = "predicted")
+plt.legend(loc='best', fontsize=14)
+plt.tick_params(labelsize=14)
+plt.show()
+</pre>
+
+Let's see the the predictions on the test data set.<br>
+![predictions on test data set](https://github.com/george-j-zhu/cryptocurrency-price-prediction/blob/master/resources/predictions.png)
+
+Predictions look quite similar to real values, but obviously, predictions are just one step behind.<br>
+So I can not say the predictions are successful.<br>
+The problem came from how we generate features for the dataset.<br>
+I think using data from different source(such as volume of bitcoin) as features may refine this problem.
 
 ## Conclusions
 
-Obviously as shown in the Bitcoin price graph, the max_value of the first 80% is totally different to that of the<br>
-rest 20%, the above normalization process makes it difficult to inverse the predictions. So as a conclusion,<br>
-normalizing target variables is not a good idea as the scale is not always the same on each data set.<br>
-(Though this approach performs well on the CV data set because of overfitting)<br>
-
-We can also see that it's really hard to apply machine learing on Demand forecasting.
+I learned how to use LSTM in Keras to make predictions.<br>
+I found out that it's hard to predict bitcoin price without other features.<br> 
+So tring to find related feature is still an important part in deep learning though deep learning is strong to extract features for us from input data.<br>
+Also it's really hard to apply machine learing on Demand forecasting.<br>
 
 But as a beginner, I still have a lot to do with parameters to refine my learning model.
 
-## Parameters for Learning for this time
-- normalization: scale to 0~1
-- mini batch size: 20
+## Parameters for Learning this time
 - epoch: 30
-- network definition: linear-layer➛LSTM-layer➛linear-layer
-- units of hidden layer: 100
-- activation function: not used
+- network definition: LSTM-layer➛Dense-layer
+- neurons of output for LSTM layer: 32
+- activation function: linear
 - dropout: not used
-- optimization algorithm: SGD
+- optimization algorithm: rmsprop
 - loss function: mean_squared_error
-Adjusting the above parameters to make a better model
+
+## Reference
+1. [http://colah.github.io/posts/2015-08-Understanding-LSTMs/](http://colah.github.io/posts/2015-08-Understanding-LSTMs/)
+2. [https://machinelearningmastery.com/use-timesteps-lstm-networks-time-series-forecasting/](https://machinelearningmastery.com/use-timesteps-lstm-networks-time-series-forecasting/)
+3. ["Dropout: A Simple Way to Prevent Neural Networks from Overfitting". Jmlr.org. Retrieved July 26, 2015.](http://jmlr.org/papers/volume15/srivastava14a.old/srivastava14a.pdf)
