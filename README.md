@@ -5,7 +5,7 @@ In this attempt, I'll use LSTM to create an Recurrent Neural Network.
 
 ## What is LSTM
 
-LSTM was proposed 20 years age. Recently in the field of NLP(Natural Language Processing), a language model built by LSTM has better performance even than human. LSTM (Long-Short Term Memory) is known for good at processing long sequence such as long sentences. Gates are deigned in LSTM to contorl and decide what are important to learn.
+LSTM was proposed 20 years ago. Recently in the field of NLP(Natural Language Processing), a language model built by LSTM has better performance even than human. LSTM (Long-Short Term Memory) is known for good at processing long sequence such as long sentences. Gates are deigned in LSTM to contorl and decide what are important to learn.
 
 Want to know more about LSTM? refer to the following site.
 [http://colah.github.io/posts/2015-08-Understanding-LSTMs/](http://colah.github.io/posts/2015-08-Understanding-LSTMs/)
@@ -13,7 +13,7 @@ Want to know more about LSTM? refer to the following site.
 ### Stateful or Stateless LSTM
 
 In keras, LSTM is stateless as default. But in this attempt, I'll use stateful LSTM. A stateful LSTM will retain the states after a batch processing while a stateless LSTM will reset them.<br>
-In natural language processing, say we have a long snetence while it is splitted into two different batchs. In order to learning the long sentence correctly, the hidden states should be retained so that the second batch can know the hidden information of the previous batch.  
+In natural language processing, say we have a long sentence while it is splitted into two different batchs. In order to learning the long sentence correctly, the hidden states should be retained so that the second batch can know the hidden information of the previous batch.  
 States here means the hidden information saved by gates in LSTM.<br>
 In this attempt, as I'll just generate features from timeseries data and don't shuffle them, features are strongly connected. So stateful LSTM should be used to retain states.
 
@@ -176,7 +176,7 @@ I think using data from different source(such as volume of bitcoin) as features 
 I learned how to use LSTM in Keras to make predictions.<br>
 I found out that it's hard to predict bitcoin price without other features.<br> 
 So tring to find related feature is still an important part in deep learning though deep learning is strong to extract features for us from input data.<br>
-Also it's really hard to apply machine learing on Demand forecasting.<br>
+Also it's really hard to apply machine learning on Demand forecasting.<br>
 
 But as a beginner, I still have a lot to do with parameters to refine my learning model.
 
