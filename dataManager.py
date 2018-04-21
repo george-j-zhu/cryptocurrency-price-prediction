@@ -52,12 +52,12 @@ class DataManager:
 
         ax1.plot(df.index, df[self.column].astype(np.float32), label = "Coin Price", color="deeppink")
 
-        #ax2 = ax1.twinx()
-        #ax2.plot(df.index, df["quoteVolume"].astype(np.float32), label = "Trading Volume of Coin", color="dodgerblue")
+        ax2 = ax1.twinx()
+        ax2.plot(df.index, df["quoteVolume"].astype(np.float32), label = "Trading Volume of Coin", color="dodgerblue")
         ax1.legend(loc=2, fontsize=14)
-        #ax2.legend(loc=1, fontsize=14)
+        ax2.legend(loc=1, fontsize=14)
         ax1.tick_params(labelsize=14)
-        #ax2.tick_params(labelsize=14)
+        ax2.tick_params(labelsize=14)
 
         plt.show()
 
@@ -110,14 +110,22 @@ class DataManager:
         """
         difference the dataframe.
         this step trys to remove the trend.
-        differncing interval is 1 here.
         """
         diff = np.empty((0,1), np.float32)
         for i in range(self.diff_interval, len(data_array)):
             value = data_array[i] - data_array[i - self.diff_interval]
             diff = np.append(diff, value)
 
+        print(self.dataframe)
         self.dataframe = self.dataframe.iloc[self.diff_interval:, :]
+        print(self.dataframe)
+    
+        fig, ax1 = plt.subplots(figsize=(20, 10))
+        ax1.plot(self.dataframe.index, diff, label = "differenced", color="deeppink")
+        ax1.legend(loc=2, fontsize=14)
+        ax1.tick_params(labelsize=14)
+        plt.show()
+
         return diff
 
 
